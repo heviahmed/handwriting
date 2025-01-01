@@ -2,6 +2,10 @@ import os
 import cv2
 import numpy as np
 from sklearn.model_selection import train_test_split
+import pandas as pd
+from PIL import Image
+
+from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.models import Model
@@ -11,8 +15,71 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau
 from docx import Document
 
 # Paths to your dataset
-dataset_path = r'C:\Users\BEST TECH\Downloads\SUE+UKH - Copy'
-csv_path = r'C:\Users\BEST TECH\Downloads\UKH+SUE-labels.csv'
+dataset_path = r'E:\Papers\My Dataset\Images-20241219T162629Z-001\Images'
+csv_path = r'E:\Papers\My Dataset\Labels-20241219T162736Z-001\Labels\lines-labels.csv'
+
+
+
+#the code for check how many class folders correspond to the IDs, how many classes do not match any folders, and how many IDs don't match any folders.
+import os
+import pandas as pd
+from PIL import Image
+
+# Paths to your dataset
+dataset_path = r'E:\Papers\My Dataset\Images-20241219T162629Z-001\Images'
+csv_path = r'E:\Papers\My Dataset\Labels-20241219T162736Z-001\Labels\lines-labels.csv'
+
+# Load CSV
+csv_data = pd.read_csv(csv_path)
+
+# Normalize CSV IDs
+csv_ids = set(csv_data['ID'].str.strip().str.upper())
+
+# List all folders and normalize names
+folders = [f for f in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, f))]
+folder_ids = set(f.strip().upper() for f in folders)
+
+# Compute matching IDs
+matching_ids = folder_ids & csv_ids
+
+# Debug differences
+unmatched_folders = folder_ids - csv_ids
+unmatched_csv_ids = csv_ids - folder_ids
+
+print(f"Number of matching IDs (valid IDs): {len(matching_ids)}")
+#print(f"Matching IDs: {matching_ids}")
+print(f"Number of folders without matching IDs in CSV: {len(unmatched_folders)}")
+print(f"Folders without matching IDs: {unmatched_folders}")
+print(f"Number of IDs in CSV without matching folders: {len(unmatched_csv_ids)}")
+#print(f"Unmatched CSV IDs: {unmatched_csv_ids}")
+
+# Validate images in folders
+total_images = 0
+invalid_images = []
+
+for folder in folders:
+    folder_cleaned = folder.strip().upper()
+    if folder_cleaned in matching_ids:  # Only process matching folders
+        folder_path = os.path.join(dataset_path, folder)
+        images = os.listdir(folder_path)
+        for image in images:
+            image_path = os.path.join(folder_path, image)
+            try:
+                with Image.open(image_path) as img:
+                    img.verify()  # Check if the image is valid
+                total_images += 1
+            except Exception as e:
+                invalid_images.append(image_path)
+
+print(f"Total valid images loaded: {total_images}")
+print(f"Invalid or failed-to-load images: {len(invalid_images)}")
+if invalid_images:
+    print(f"Invalid images: {invalid_images}")
+
+#the code for checking ids and folders ends here.
+
+
+
 
 # Image size for MobileNetV2
 IMG_SIZE = 128
@@ -110,7 +177,7 @@ lr_scheduler = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min
 # Train the model
 history = model.fit(
     X_train, y_train,
-    epochs=20,
+    epochs=100,
     batch_size=32,
     validation_data=(X_val, y_val),
     callbacks=[lr_scheduler]
@@ -153,4 +220,4 @@ for i in range(len(predicted_classes)):
 
 # Save the document
 doc.save('Test_Results.docx')
-print("Results saved to 'Test_Results.docx'")
+#print("Results saved to 'Test_Results.docx'")
