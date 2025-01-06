@@ -1,0 +1,156 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Oct 14 20:35:02 2021
+
+@author: mhama
+"""
+
+
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Oct 13 14:27:33 2021
+
+@author: Ten-D Student
+"""
+
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[ ]:
+
+
+import cv2
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import backend as K
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.metrics import categorical_crossentropy
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense,GlobalAveragePooling2D,Dropout,SeparableConv2D,BatchNormalization, Activation, Dense
+from tensorflow.keras.applications.mobilenet import MobileNet
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+from tensorflow.keras.optimizers import Adam
+import os
+import tensorflow as tf
+#from keras import backend as K
+from tensorflow.keras.models import load_model
+
+
+
+#===============
+import tensorflow as tf
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
+
+#================
+
+
+K.clear_session 
+num_class = 4802
+size = 224
+batch_size = 8
+epoch = 25
+    
+    
+    
+refile_name='transfar5'
+
+train_path = r"E:\Papers\My Dataset\training"
+valid_path = r"E:\Papers\My Dataset\validation"
+#train_datagen=ImageDataGenerator(preprocessing_function=keras.applications.mobilenet_v2.preprocess_input,
+                                     #validation_split=0.3)
+train_batches = ImageDataGenerator(preprocessing_function=keras.applications.mobilenet_v2.preprocess_input).flow_from_directory(train_path, target_size=(224,224),batch_size=16)
+    
+valid_batches = ImageDataGenerator(preprocessing_function=keras.applications.mobilenet_v2.preprocess_input).flow_from_directory(valid_path, target_size=(224,224),batch_size=8)
+#test_datagen = ImageDataGenerator(rescale = 1./255)
+#train_datagen=ImageDataGenerator(rescale = 1./255, validation_split=0.3)
+model = MobileNetV2(include_top=False, weights='imagenet', input_shape=(224,224,3))
+# model.summary()
+
+#MobileNet
+model_name = 'MobileNet'
+# Base model without Fully connected Layers
+#base_model = MobileNetV2(include_top=False, weights='imagenet', input_shape=(size,size,3))
+x=model.output
+# Add some new Fully connected layers to 
+x=GlobalAveragePooling2D()(x)
+#x=Dense(128,activation='relu')(x)
+x = Dropout(0.5)(x)
+#x=Dense(256,activation='relu')(x)
+#x = Dropout(0.5)(x)
+#x=Dense(512,activation='relu')(x) 
+#x = Dropout(0.5)(x)
+preds=Dense(num_class, activation='softmax')(x) #final layer with softmax activation
+    
+model=Model(inputs=model.input,outputs=preds)
+    
+#model.summary()
+    
+#trainable_state=True
+#model.trainable=trainable_state
+    
+    
+# In[ ]:
+    
+
+
+#MobileNet
+trainable_state = 100
+for layer in model.layers[:trainable_state]:
+    layer.trainable=True    #True
+#for layer in model.layers[trainable_state:]:
+ #   layer.trainable=True
+        
+        
+trainable_state='indx_'+str(trainable_state)
+print(trainable_state)
+    
+    
+    # In[ ]:
+    
+    
+import time
+    
+class TimeHistory(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+          self.times = []
+    
+    def on_epoch_begin(self, epoch, logs={}):
+         self.epoch_time_start = time.time()
+    
+    def on_epoch_end(self, epoch, logs={}):
+         self.times.append(time.time() - self.epoch_time_start)
+    
+    
+    # In[ ]:
+    
+    
+    
+learning_rate = 0.0001
+decay_rate = learning_rate / epoch
+opt = Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=None, decay=decay_rate, amsgrad=False)
+model.compile(optimizer=opt,loss='categorical_crossentropy',metrics=['accuracy'])
+# Training with OOM error handling
+try:
+    # Train the model
+    model.fit_generator(
+        train_batches,
+        validation_data=valid_batches,
+        epochs=epoch,
+    )
+except tf.errors.ResourceExhaustedError as e:
+    # Handle OOM error
+    print("ResourceExhaustedError (OOM):", e)
+    print("Suggestions: Reduce batch size or number of trainable layers.")
+model.save('mobileNEtV2.h5')
+    
+    
